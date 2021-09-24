@@ -31,21 +31,19 @@ private slots:
 
     void decodeData();
 
-    void on_pushButtonEnviar_clicked();
+    void sendData();
 
-    void on_comboBox_currentIndexChanged(int index);
+    void drawInter(uint16_t leds);
 
-    void getLedsCanvas(uint16_t leds);
+    void on_pushButton_5_toggled(bool checked);
 
-    //void on_pushButton_clicked();
+    void on_pushButton_4_clicked();
 
-    void on_pushButton_4_toggled(bool checked);
+    void on_pushButton_3_clicked();
 
-    void on_pushButton_3_toggled(bool checked);
+    void on_pushButton_2_clicked();
 
-    void on_pushButton_2_toggled(bool checked);
-
-    void on_pushButton_toggled(bool checked);
+    void on_pushButton_clicked();
 
 private:
     Ui::MainWindow *ui;
@@ -99,6 +97,6 @@ private:
     }_udat;
 
     _udat myWord;
-
+    uint16_t lastLeds;
 };
 #endif // MAINWINDOW_H

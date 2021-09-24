@@ -17,94 +17,19 @@
    <widget class="QWidget" name="widget" native="true">
     <property name="geometry">
      <rect>
-      <x>20</x>
-      <y>170</y>
-      <width>871</width>
-      <height>161</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QGroupBox" name="groupBox">
-    <property name="geometry">
-     <rect>
       <x>190</x>
       <y>10</y>
-      <width>691</width>
-      <height>151</height>
+      <width>701</width>
+      <height>311</height>
      </rect>
     </property>
-    <property name="title">
-     <string>Flujo de Datos</string>
-    </property>
-    <widget class="QTextBrowser" name="textBrowser">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>20</y>
-       <width>661</width>
-       <height>121</height>
-      </rect>
-     </property>
-    </widget>
-   </widget>
-   <widget class="QGroupBox" name="groupBox_2">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>10</y>
-      <width>162</width>
-      <height>97</height>
-     </rect>
-    </property>
-    <property name="title">
-     <string>Comunicaciones</string>
-    </property>
-    <layout class="QGridLayout" name="gridLayout">
-     <item row="0" column="0">
-      <widget class="QComboBox" name="comboBox">
-       <property name="currentText">
-        <string>Lista de Comandos</string>
-       </property>
-       <property name="currentIndex">
-        <number>0</number>
-       </property>
-       <item>
-        <property name="text">
-         <string>Lista de Comandos</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>ALIVE</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>GET_LEDS</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>SET_LEDS</string>
-        </property>
-       </item>
-      </widget>
-     </item>
-     <item row="1" column="0">
-      <widget class="QPushButton" name="pushButtonEnviar">
-       <property name="text">
-        <string>Enviar</string>
-       </property>
-      </widget>
-     </item>
-    </layout>
    </widget>
    <widget class="QGroupBox" name="groupBox_3">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>340</y>
-      <width>871</width>
+      <x>190</x>
+      <y>330</y>
+      <width>701</width>
       <height>81</height>
      </rect>
     </property>
@@ -114,9 +39,9 @@
     <widget class="QWidget" name="layoutWidget">
      <property name="geometry">
       <rect>
-       <x>200</x>
+       <x>140</x>
        <y>10</y>
-       <width>431</width>
+       <width>444</width>
        <height>61</height>
       </rect>
      </property>
@@ -126,8 +51,8 @@
         <property name="text">
          <string>YELLOW</string>
         </property>
-        <property name="checkable">
-         <bool>true</bool>
+        <property name="flat">
+         <bool>false</bool>
         </property>
        </widget>
       </item>
@@ -136,18 +61,12 @@
         <property name="text">
          <string>RED</string>
         </property>
-        <property name="checkable">
-         <bool>true</bool>
-        </property>
        </widget>
       </item>
       <item>
        <widget class="QPushButton" name="pushButton_2">
         <property name="text">
          <string>BLUE</string>
-        </property>
-        <property name="checkable">
-         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -156,13 +75,49 @@
         <property name="text">
          <string>GREEN</string>
         </property>
-        <property name="checkable">
-         <bool>true</bool>
-        </property>
        </widget>
       </item>
      </layout>
     </widget>
+   </widget>
+   <widget class="QGroupBox" name="groupBox">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>40</y>
+      <width>171</width>
+      <height>371</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>Flujo de Datos</string>
+    </property>
+    <widget class="QTextBrowser" name="textBrowser">
+     <property name="geometry">
+      <rect>
+       <x>0</x>
+       <y>20</y>
+       <width>171</width>
+       <height>351</height>
+      </rect>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QPushButton" name="pushButton_5">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>10</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>ALIVE</string>
+    </property>
+    <property name="checkable">
+     <bool>true</bool>
+    </property>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
