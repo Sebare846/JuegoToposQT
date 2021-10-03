@@ -33,25 +33,28 @@ private slots:
 
     void sendData();
 
-    void drawInter(uint16_t leds);
+    void drawInter();
 
     void on_pushButton_5_toggled(bool checked);
 
-    void on_pushButton_4_clicked();
+    void on_pushButton_clicked();
 
-    void on_pushButton_3_clicked();
+    void juegoTopos();
 
     void on_pushButton_2_clicked();
 
-    void on_pushButton_clicked();
+    void on_pushButton_3_clicked();
+
+    void conectar();
 
 private:
     Ui::MainWindow *ui;
     QSerialPort *mySerial;
-    QTimer *myTimer;
+    QTimer *myTimer, *gameTimer;
     QPaintBox *myPaintBox;
     SettingsDialog *mySettings;
     QLabel *estado;
+
 
 
     typedef enum{
@@ -67,13 +70,24 @@ private:
     _eProtocolo estadoProtocolo;
 
     typedef enum{
+        ACK = 0x0D,
         ALIVE=0xF0,
-        GET_LEDS=0xF1,
-        SET_LEDS=0xF2,
+        GET_LEDS=0xFB,
+        SET_LEDS=0xFC,
+        BUTTONEVENT=0xFA,
+        GET_BUTTONS=0xFD,
         OTHERS
     }_eID;
 
     _eID estadoComandos;
+
+    typedef enum{
+        LOBBY,
+        GAME,
+        FINISH
+    }_eESTADOS;
+
+    _eESTADOS gameState;
 
     typedef struct{
         uint8_t timeOut;
@@ -88,7 +102,7 @@ private:
     typedef union {
         float f32;
         int i32;
-        unsigned int ui32;
+        unsigned int ui32;        
         unsigned short ui16[2];
         short i16[2];
         uint8_t ui8[4];
@@ -97,6 +111,20 @@ private:
     }_udat;
 
     _udat myWord;
-    uint16_t lastLeds;
+
+    typedef struct{
+        uint8_t estado;
+        uint8_t event;
+        int32_t timeDown;
+        int32_t timeDiff;
+    }_sTeclas;
+
+    _sTeclas ourButton[4];
+
+
+    uint16_t lastLeds, ledsRead, buttonsState;
+    uint8_t buttonIndex, numLed, ledState, auxButtonState = 0;
+    uint8_t ledsMask[6]={0,1,2,4,8,15};
+
 };
 #endif // MAINWINDOW_H
