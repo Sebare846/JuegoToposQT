@@ -4,9 +4,20 @@
 #include <QMainWindow>
 #include <QtSerialPort/QSerialPort>
 #include <QTimer>
+#include <QTime>
 #include <QLabel>
 #include "settingsdialog.h"
 #include "qpaintbox.h"
+
+#define MAXTIMEOUT 6000
+#define MAXTIMEIN 2000
+#define MINTIMEOUT 1000
+#define MINTIMEIN 500
+#define INTERVAL 50
+#define NUMLED 4
+#define NUMBUT 4
+#define TIMESTART 1000
+#define GAMETIME 30000
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -35,15 +46,13 @@ private slots:
 
     void drawInter();
 
-    void on_pushButton_5_toggled(bool checked);
-
-    void on_pushButton_clicked();
+    void alive();
 
     void juegoTopos();
 
-    void on_pushButton_2_clicked();
+    void getLeds();
 
-    void on_pushButton_3_clicked();
+    void getButtons();
 
     void conectar();
 
@@ -54,6 +63,7 @@ private:
     QPaintBox *myPaintBox;
     SettingsDialog *mySettings;
     QLabel *estado;
+
 
 
 
@@ -121,10 +131,27 @@ private:
 
     _sTeclas ourButton[4];
 
+    typedef union{
+        struct{
+            uint8_t playing :1;
+            uint8_t topoOut1 :1;
+            uint8_t topoOut2 :1;
+            uint8_t topoOut3 :1;
+            uint8_t topoOut4 :1;
+            uint8_t buttonUp:1;
+            uint8_t Reserved :2;
+
+        }individualFlags;
+        uint8_t allFlags;
+    }_bGeneralFlags;
+
+    volatile _bGeneralFlags myFlags;
 
     uint16_t lastLeds, ledsRead, buttonsState;
-    uint8_t buttonIndex, numLed, ledState, auxButtonState = 0;
-    uint8_t ledsMask[6]={0,1,2,4,8,15};
-
+    uint8_t buttonIndex, numLed, ledState, auxButtonState = 0, auxledTopos=0;
+    uint16_t waitTime = 0, auxGameTime = 0, delay = 0, randomTimeOut[4], randomTimeIn[4], actualTime[4] = {0,0,0,0};
+    uint8_t ledsMask[5]={1,2,4,8,15};
+    uint8_t randomLed, aciertos = 0, fallos = 0, errores = 0;
+    int puntaje = 0, puntajeMax = 0;
 };
 #endif // MAINWINDOW_H

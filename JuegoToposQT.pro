@@ -13,15 +13,18 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     qpaintbox.cpp \
+    scorewindow.cpp \
     settingsdialog.cpp
 
 HEADERS += \
     mainwindow.h \
     qpaintbox.h \
+    scorewindow.h \
     settingsdialog.h
 
 FORMS += \
     mainwindow.ui \
+    scorewindow.ui \
     settingsdialog.ui
 
 # Default rules for deployment.

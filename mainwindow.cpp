@@ -8,34 +8,47 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     myTimer = new QTimer(this);
+    gameTimer = new QTimer(this);
     mySerial = new QSerialPort(this);
     mySettings = new SettingsDialog();
+
     myPaintBox = new QPaintBox(0,0,ui->widget);
     estado = new QLabel;
     estado->setText("Desconectado............");
     ui->statusbar->addWidget(estado);
     ui->actionDesconectar->setEnabled(false);
+    ui->menuALIVE->setEnabled(false);
+    ui->screenState->setText("DESCONECTADO");
+    ui->screenState->setAlignment(Qt::AlignCenter);
     //ui->widget->setVisible(false);
 
     estadoProtocolo=START; //Recibe
     gameState = LOBBY;
-
-    ui->pushButton_5->setEnabled(false);
+    myFlags.individualFlags.playing = false;
+    myFlags.individualFlags.topoOut1 = false;
+    myFlags.individualFlags.topoOut2 = false;
+    myFlags.individualFlags.topoOut3 = false;
+    myFlags.individualFlags.topoOut4 = false;
+    srand(time(NULL));
 
     estadoComandos=ALIVE; //Envia
 
     ///Conexión de eventos
     connect(mySerial,&QSerialPort::readyRead,this, &MainWindow::dataRecived ); //Si llega recibir
-    connect(myTimer, &QTimer::timeout,this, &MainWindow::myTimerOnTime); //intervalo de tiempo
+    connect(myTimer, &QTimer::timeout,this, &MainWindow::myTimerOnTime); //intervalo de tiempo    
+    connect(gameTimer,&QTimer::timeout,this,&MainWindow::juegoTopos); //intervalo de tiempo
     connect(ui->actionEscaneo_de_Puertos, &QAction::triggered, mySettings, &SettingsDialog::show); //Esaneo de puerto
     connect(ui->actionConectar,&QAction::triggered,this, &MainWindow::openSerialPort); //Abrir puerto
-    //connect(ui->actionConectar, &QAction::triggered,this, &MainWindow::drawInter);
     connect(ui->actionConectar, &QAction::triggered,this, &MainWindow::conectar);
     connect(ui->actionDesconectar, &QAction::triggered, this, &MainWindow::closeSerialPort); //Cerrar puerto
     connect(ui->actionSalir,&QAction::triggered,this,&MainWindow::close ); //Cerrar programa
+    connect(ui->actionALIVE,&QAction::triggered,this,&MainWindow::alive ); //Enviar Alive
+    connect(ui->actionGET_BUTTONS,&QAction::triggered,this,&MainWindow::getButtons); //Enviar GET BUTTON
+    connect(ui->actionGET_LEDS,&QAction::triggered,this,&MainWindow::getLeds); //ENVIAR GET LEDS
 
-    myTimer->start(10);
-    gameTimer->start(40);
+
+    myTimer->start(50);
+    gameTimer->start(INTERVAL);
 
 }
 
@@ -58,7 +71,7 @@ void MainWindow::openSerialPort()
     if(mySerial->isOpen()){
         ui->actionConectar->setEnabled(false);
         ui->actionDesconectar->setEnabled(true);
-        ui->pushButton_5->setEnabled(true);
+        ui->menuALIVE->setEnabled(true);
         estado->setText(tr("Conectado a  %1 : %2, %3, %4, %5, %6  %7")
                                          .arg(p.name).arg(p.stringBaudRate).arg(p.stringDataBits)
                                          .arg(p.stringParity).arg(p.stringStopBits).arg(p.stringFlowControl).arg(p.fabricante));
@@ -66,8 +79,6 @@ void MainWindow::openSerialPort()
     else{
         QMessageBox::warning(this,"Menu Conectar","No se pudo abrir el puerto Serie!!!!");
     }
-
-
 }
 
 void MainWindow::closeSerialPort()
@@ -77,11 +88,11 @@ void MainWindow::closeSerialPort()
         ui->actionDesconectar->setEnabled(false);
         ui->actionConectar->setEnabled(true);
         estado->setText("Desconectado................");
-        ui->pushButton_5->setEnabled(false);
+        ui->menuALIVE->setEnabled(false);
     }
     else{
          estado->setText("Desconectado................");
-         ui->pushButton_5->setEnabled(false);
+         ui->menuALIVE->setEnabled(false);
     }
 
 }
@@ -177,8 +188,8 @@ void MainWindow::dataRecived()
                 if(rxData.nBytes==0){
                     estadoProtocolo=START;
                     if(rxData.cheksum==incomingBuffer[i]){
-                        ui->textBrowser->setTextColor(Qt::blue);
-                        ui->textBrowser->append(">>MBED-->PC :: RECEIVED ::");
+//                        ui->textBrowser->setTextColor(Qt::blue);
+//                        ui->textBrowser->append(">>MBED-->PC :: RECEIVED ::");
                         decodeData();
                     }
                 }
@@ -189,11 +200,16 @@ void MainWindow::dataRecived()
         }
     }
     delete [] incomingBuffer;
+    if(waitTime >= TIMESTART){
+        waitTime = 0;
+        myFlags.individualFlags.playing = !myFlags.individualFlags.playing;
+        return juegoTopos();
+    }
 }
 
 void MainWindow::decodeData()
 {
-    QString str="", s="",stime="";
+    QString str="", s="";
     //for(int a=1; a < rxData.index; a++){
     switch (rxData.payLoad[1]) {
         case ALIVE:
@@ -208,30 +224,31 @@ void MainWindow::decodeData()
             myWord.ui8[3] = rxData.payLoad[7];
             if(rxData.payLoad[3]){
                 ourButton[buttonIndex].timeDiff = myWord.ui32;
-                stime.setNum(myWord.ui32);
-                str = "::*ID Válido* (BUTTON UP)::\n stateDiff: "+ stime +"";
-                if(ourButton[buttonIndex].timeDiff >= 1000)
-                    juegoTopos();
+                waitTime = myWord.ui32;
+//                str = "::*ID Válido* (BUTTON UP)::";
 
             }else{
                 ourButton[buttonIndex].timeDown = myWord.ui32;
-                str = "::*ID Válido* (BUTTON DOWN)::";
+//                str = "::*ID Válido* (BUTTON DOWN)::";
+                myFlags.individualFlags.buttonUp = true;
             }
+            buttonsState = ourButton[buttonIndex].estado;
             drawInter();
             break;
         case SET_LEDS:
             myWord.ui8[0] = rxData.payLoad[2];
             myWord.ui8[1] = rxData.payLoad[3];
             lastLeds = myWord.ui16[0];
-            s.setNum(lastLeds);
-            str = "::*ID Válido* (LEDS SET)::\n stateLeds: "+ s +"";
+//            s.setNum(lastLeds);
+//            str = "::*ID Válido* (LEDS SET)::";
+            drawInter();
             break;
         case GET_LEDS:
             myWord.ui8[0] = rxData.payLoad[2];
             myWord.ui8[1] = rxData.payLoad[3];
             lastLeds = myWord.ui16[0];
-            s.setNum(lastLeds);
-            str = "::*ID Válido* (LEDS GOT)::\n stateLeds: "+ s +"";
+//            s.setNum(lastLeds);
+//            str = "::*ID Válido* (LEDS GOT)::\n stateLeds: "+ s +"";
             drawInter();
             break;
         case GET_BUTTONS:
@@ -240,26 +257,23 @@ void MainWindow::decodeData()
             for(uint8_t i = 0;i<4;i++){
             auxButtonState = ~myWord.ui8[0] -240;
             }
-            s.setNum(auxButtonState);
-            str = "::*ID Válido* (BUTTONS GOT)::\n buttonState: "+ s +"";
+//            s.setNum(auxButtonState);
+//            str = "::*ID Válido* (BUTTONS GOT)::\n buttonState: "+ s +"";
             break;
         default:
-            str=((char *)rxData.payLoad);
-            str= ("::*ID Invalido * (" + str + ")::");
+//            str=((char *)rxData.payLoad);
+//            str= ("::*ID Invalido * (" + str + ")::");
             break;
     }
     //}
     //escribe en la pantalla el mensaje
-    ui->textBrowser->setTextColor(Qt::black);
-    ui->textBrowser->append(str);
+//    ui->textBrowser->setTextColor(Qt::black);
+//    ui->textBrowser->append(str);
 
 }
-
-
 void MainWindow::sendData()
 {
     //carga el header y token
-
     txData.index=0;
     txData.payLoad[txData.index++]='U';
     txData.payLoad[txData.index++]='N';
@@ -304,26 +318,21 @@ void MainWindow::sendData()
         mySerial->write((char *)txData.payLoad,txData.payLoad[NBYTES]+6);
     }
     //escribe en pantalla el mensaje enviado
-    for(int i=0; i<=txData.index; i++){
-        if(isalnum(txData.payLoad[i]))
-            str = str + QString("%1").arg((char)txData.payLoad[i]);
-        else
-            str = str +"{" + QString("%1").arg(txData.payLoad[i],2,16,QChar('0')) + "}";
-    }
-    ui->textBrowser->setTextColor(Qt::green);
-    ui->textBrowser->append(">>PC-->MBED :: SENT ::");
+//    for(int i=0; i<=txData.index; i++){
+//        if(isalnum(txData.payLoad[i]))
+//            str = str + QString("%1").arg((char)txData.payLoad[i]);
+//        else
+//            str = str +"{" + QString("%1").arg(txData.payLoad[i],2,16,QChar('0')) + "}";
+//    }
+//    ui->textBrowser->setTextColor(Qt::green);
+//    ui->textBrowser->append(">>PC-->MBED :: SENT ::");
 
 }
 
-void MainWindow::on_pushButton_5_toggled(bool checked)
+void MainWindow::alive()
 {
-    if(checked){
-        estadoComandos = ALIVE;
-        sendData();
-    }else{
-        estadoComandos = ALIVE;
-        sendData();
-    }
+    estadoComandos = ALIVE;
+    sendData();
 }
 
 void MainWindow::drawInter(){
@@ -386,8 +395,8 @@ void MainWindow::drawInter(){
     pen.setColor(Qt::white);
     paint.setPen(pen);
 
-    for(int i = 0; i < 4;i++){
-        if(buttonIndex == i){
+    for(int i = 0; i < NUMBUT;i++){
+        if(ourButton[i].estado == true){
             switch(ourButton[i].estado){
                 case 1:
                     paint.setBrush(Qt::darkGray);
@@ -409,74 +418,231 @@ void MainWindow::drawInter(){
 }
 
 
-
-void MainWindow::on_pushButton_clicked()
-{
-    estadoComandos = SET_LEDS;
-    numLed = ledsMask[5];
-    ledState = 1;
-    sendData();
-
-}
-
 void MainWindow::juegoTopos(){
+    if(myFlags.individualFlags.playing){
+        switch(gameState){
+        case LOBBY:
+            delay++;
+            ui->screenState->setText("PLAYING");
+            ui->screenState->setAlignment(Qt::AlignCenter);
+            estadoComandos = SET_LEDS;
+            numLed = ledsMask[NUMLED];
+            ledState = 1;
+            sendData();
+            if(delay - auxGameTime >= (TIMESTART/INTERVAL)){
+                delay = 0;
+                auxGameTime = 0;
+                ledState = 0;
+                sendData();
+                estadoComandos = GET_LEDS;
+                sendData();
+                gameState = GAME;
+            }
+            break;
+        case GAME:
+            delay++;
+            if((delay < (GAMETIME/INTERVAL))){
+                if(delay >= actualTime[0]){
+                    if(myFlags.individualFlags.topoOut1 == false){
+                        randomTimeOut[0] = ((rand() % (MAXTIMEOUT-MINTIMEOUT)) + MINTIMEOUT)/INTERVAL;
+                        randomTimeIn[0] = ((rand() % (MAXTIMEIN-MINTIMEIN)) + MINTIMEIN)/INTERVAL;
+                        myFlags.individualFlags.topoOut1 = true;
+                    }else{
+                        auxledTopos = 0;
+                        auxledTopos |= 1<<0;
+                        if(lastLeds & auxledTopos){
+                            actualTime[0] += (randomTimeOut[0]);
+                            ledState = 0;
+                            fallos++;
+                            puntaje -= 10;
+                            ui->screenFallos->display(QString().number(fallos));
+                            ui->screenPuntaje->display(QString().number(puntaje));
+                            myFlags.individualFlags.topoOut1 = false;
+                        }else{
+                            actualTime[0] += (randomTimeIn[0]);
+                            ledState = 1;
 
-//    switch(gameState){
-//    case LOBBY:
-//        gameTimer->start(40);
-//        estadoComandos = GET_BUTTONS;
-//        sendData();
-//        if(buttonsState == 0){
-//            estadoComandos = SET_LEDS;
-//            numLed = ledsMask[5];
-//            ledState = 0;
-//            sendData();
-//            gameState = GAME;
-//        }
+                        }
+                        numLed = ledsMask[0];
+                        estadoComandos = SET_LEDS;
+                        sendData();
 
-//        break;
-//    case GAME:
+                    }
+                }
 
+                if(delay >= actualTime[1]){
+                    if(myFlags.individualFlags.topoOut2 == false){
+                        randomTimeOut[1] = ((rand() % (MAXTIMEOUT-MINTIMEOUT)) + MINTIMEOUT)/INTERVAL;
+                        randomTimeIn[1] = ((rand() % (MAXTIMEIN-MINTIMEIN)) + MINTIMEIN)/INTERVAL;
+                        myFlags.individualFlags.topoOut2 = true;
+                    }else{
+                        auxledTopos = 0;
+                        auxledTopos |= (1<<1);
+                        if(lastLeds & auxledTopos){
+                            actualTime[1] += (randomTimeOut[1]);
+                            ledState = 0;
+                            fallos++;
+                            puntaje -= 10;
+                            ui->screenFallos->display(QString().number(fallos));
+                            ui->screenPuntaje->display(QString().number(puntaje));
+                            myFlags.individualFlags.topoOut2 = false;
+                        }else{
+                            actualTime[1] += (randomTimeIn[1]);
+                            ledState = 1;
+                        }
+                        numLed = ledsMask[1];
+                        estadoComandos = SET_LEDS;
+                        sendData();
 
-//        break;
-//    case FINISH:
-//        break;
-//    default:
-//        break;
+                    }
+                }
+                if(delay >= actualTime[2]){
+                    if(myFlags.individualFlags.topoOut3 == false){
+                        randomTimeOut[2] = ((rand() % (MAXTIMEOUT-MINTIMEOUT)) + MINTIMEOUT)/INTERVAL;
+                        randomTimeIn[2] = ((rand() % (MAXTIMEIN-MINTIMEIN)) + MINTIMEIN)/INTERVAL;
+                        myFlags.individualFlags.topoOut3 = true;
+                    }else{
+                        auxledTopos = 0;
+                        auxledTopos |= 1<<2;
+                        if(lastLeds & auxledTopos){
+                            actualTime[2] += (randomTimeOut[2]);
+                            ledState = 0;
+                            fallos++;
+                            puntaje -= 10;
+                            ui->screenFallos->display(QString().number(fallos));
+                            ui->screenPuntaje->display(QString().number(puntaje));
+                            myFlags.individualFlags.topoOut3 = false;
+                        }else{
+                            actualTime[2] += (randomTimeIn[2]);
+                            ledState = 1;
+                        }
+                        numLed = ledsMask[2];
+                        estadoComandos = SET_LEDS;
+                        sendData();
 
-//    }
+                    }
+                }
+
+                if(delay >= actualTime[3]){
+                    if(myFlags.individualFlags.topoOut4 == false){
+                        randomTimeOut[3] = ((rand() % (MAXTIMEOUT-MINTIMEOUT)) + MINTIMEOUT)/INTERVAL;
+                        randomTimeIn[3] = ((rand() % (MAXTIMEIN-MINTIMEIN)) + MINTIMEIN)/INTERVAL;
+                        myFlags.individualFlags.topoOut4 = true;
+                    }else{
+                        auxledTopos = 0;
+                        auxledTopos |= 1<<3;
+                        if(lastLeds & auxledTopos){
+                            actualTime[3] = delay + (randomTimeOut[3]);
+                            ledState = 0;
+                            fallos++;
+                            puntaje -= 10;
+                            ui->screenFallos->display(QString().number(fallos));
+                            ui->screenPuntaje->display(QString().number(puntaje));
+                            myFlags.individualFlags.topoOut4 = false;
+                        }else{
+                            actualTime[3] = delay + (randomTimeIn[3]);
+                            ledState = 1;
+                        }
+                        numLed = ledsMask[3];
+                        estadoComandos = SET_LEDS;
+                        sendData();
+
+                    }
+                }
+                for(uint8_t i =0;i<NUMBUT;i++){
+                    if(myFlags.individualFlags.buttonUp && (ourButton[i].estado == 1)){
+                        auxledTopos = 0;
+                        auxledTopos |= 1<<i;
+                        if(lastLeds & auxledTopos){
+                            aciertos++;
+                            puntaje += (randomTimeOut[i]*randomTimeOut[i])/(randomTimeIn[i]*(actualTime[i]-delay));
+                            numLed = ledsMask[i];
+                            ledState = 0;
+                            estadoComandos = SET_LEDS;
+                            sendData();
+                        }else{
+                            errores++;
+                            puntaje -= 20;
+                        }
+                        ui->screenAciertos->display(QString().number(aciertos));
+                        ui->screenErrores->display(QString().number(errores));
+                        ui->screenPuntaje->display(QString().number(puntaje));
+                        myFlags.individualFlags.buttonUp = false;
+                    }
+                }
+            }else{
+                gameState = FINISH;
+            }
+
+            break;
+        case FINISH:
+            if(puntaje > puntajeMax){
+                puntajeMax = puntaje;
+                ui->screenPuntajeMax->display(QString().number(puntajeMax,10));
+            }
+            ledState = 0;
+            numLed = ledsMask[NUMLED];
+            estadoComandos = SET_LEDS;
+            sendData();
+            gameState = LOBBY;
+            delay = 0;
+            auxGameTime = 0;
+            myFlags.individualFlags.playing = false;
+            fallos = 0;
+            aciertos = 0;
+            errores = 0;
+            puntaje = 0;
+            for(uint8_t i = 0; i<4;i++){
+                randomTimeOut[i] = 0;
+                randomTimeIn[i]=0;
+                actualTime[i] = 0;
+            }
+            ui->screenErrores->display(QString().number(errores,10));
+            ui->screenAciertos->display(QString().number(aciertos,10));
+            ui->screenFallos->display(QString().number(fallos,10));
+            ui->screenPuntaje->display(QString().number(puntaje,10));
+            ui->screenState->setText("AWAITING PLAYER");
+            ui->screenState->setAlignment(Qt::AlignCenter);
+            break;
+        default:
+            break;
+
+        }
+    }
 
 }
 
 void MainWindow::conectar(){
     for(uint8_t step = 0;step < 3;step++){
         switch (estadoComandos) {
-        case ALIVE:
-            sendData();
-            estadoComandos = GET_BUTTONS;
-            break;
-        case GET_BUTTONS:
-            sendData();
-            estadoComandos = GET_LEDS;
-            break;
-        case GET_LEDS:
-            sendData();
-            break;
-        default:
-            break;
+            case ALIVE:
+                sendData();
+                estadoComandos = GET_BUTTONS;
+                break;
+            case GET_BUTTONS:
+                sendData();
+                estadoComandos = GET_LEDS;
+                break;
+            case GET_LEDS:
+                sendData();
+                ui->screenState->setText("AWAITING PLAYER");
+                ui->screenState->setAlignment(Qt::AlignCenter);
+                break;
+            default:
+                break;
         }
     }
 }
 
 
-void MainWindow::on_pushButton_2_clicked()
+void MainWindow::getLeds()
 {
   estadoComandos = GET_LEDS;
     sendData();
 }
 
 
-void MainWindow::on_pushButton_3_clicked()
+void MainWindow::getButtons()
 {
     estadoComandos = GET_BUTTONS;
       sendData();
