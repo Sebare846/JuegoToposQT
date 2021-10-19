@@ -6,23 +6,26 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
+    //Creacion de clases
     ui->setupUi(this);
     myTimer = new QTimer(this);
     gameTimer = new QTimer(this);
     mySerial = new QSerialPort(this);
     mySettings = new SettingsDialog();
-
     myPaintBox = new QPaintBox(0,0,ui->widget);
     estado = new QLabel;
+
+    //Config inicial de la interfaz
     estado->setText("Desconectado............");
     ui->statusbar->addWidget(estado);
     ui->actionDesconectar->setEnabled(false);
     ui->menuALIVE->setEnabled(false);
     ui->screenState->setText("DESCONECTADO");
     ui->screenState->setAlignment(Qt::AlignCenter);
-    //ui->widget->setVisible(false);
 
-    estadoProtocolo=START; //Recibe
+    //Inicializacion de variables
+    estadoProtocolo=START;
+    estadoComandos=ALIVE;
     gameState = LOBBY;
     myFlags.individualFlags.playing = false;
     myFlags.individualFlags.topoOut1 = false;
@@ -31,7 +34,6 @@ MainWindow::MainWindow(QWidget *parent)
     myFlags.individualFlags.topoOut4 = false;
     srand(time(NULL));
 
-    estadoComandos=ALIVE; //Envia
 
     ///Conexión de eventos
     connect(mySerial,&QSerialPort::readyRead,this, &MainWindow::dataRecived ); //Si llega recibir
@@ -46,7 +48,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->actionGET_BUTTONS,&QAction::triggered,this,&MainWindow::getButtons); //Enviar GET BUTTON
     connect(ui->actionGET_LEDS,&QAction::triggered,this,&MainWindow::getLeds); //ENVIAR GET LEDS
 
-
+    //Generacion de timers
     myTimer->start(50);
     gameTimer->start(INTERVAL);
 
@@ -57,6 +59,7 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+//Abrir puerto serie
 void MainWindow::openSerialPort()
 {
     SettingsDialog::Settings p = mySettings->settings();
@@ -81,6 +84,7 @@ void MainWindow::openSerialPort()
     }
 }
 
+//Cerrar puerto serie
 void MainWindow::closeSerialPort()
 {
     if(mySerial->isOpen()){
@@ -107,6 +111,7 @@ void MainWindow::myTimerOnTime()
     }
 }
 
+//Decodificacion de protocolo de recepcion
 void MainWindow::dataRecived()
 {
     unsigned char *incomingBuffer;
@@ -207,15 +212,16 @@ void MainWindow::dataRecived()
     }
 }
 
+//Decodificacion de datos recibidos (payload)
 void MainWindow::decodeData()
 {
-    QString str="", s="";
+//    QString str="", s="";
     //for(int a=1; a < rxData.index; a++){
     switch (rxData.payLoad[1]) {
-        case ALIVE:
-            str = "::*ID Válido* (ALIVE)::";
+        case ALIVE: //Confirma conexion
+            //str = "::*ID Válido* (ALIVE)::";
             break;
-        case BUTTONEVENT:
+        case BUTTONEVENT: //Indica cambio en el estado de un boton
             buttonIndex = rxData.payLoad[2];
             ourButton[buttonIndex].estado = !rxData.payLoad[3];
             myWord.ui8[0] = rxData.payLoad[4];
@@ -235,7 +241,7 @@ void MainWindow::decodeData()
             buttonsState = ourButton[buttonIndex].estado;
             drawInter();
             break;
-        case SET_LEDS:
+        case SET_LEDS: //Recibe estado de leds
             myWord.ui8[0] = rxData.payLoad[2];
             myWord.ui8[1] = rxData.payLoad[3];
             lastLeds = myWord.ui16[0];
@@ -243,7 +249,7 @@ void MainWindow::decodeData()
 //            str = "::*ID Válido* (LEDS SET)::";
             drawInter();
             break;
-        case GET_LEDS:
+        case GET_LEDS: //Recibe estado de leds
             myWord.ui8[0] = rxData.payLoad[2];
             myWord.ui8[1] = rxData.payLoad[3];
             lastLeds = myWord.ui16[0];
@@ -251,7 +257,7 @@ void MainWindow::decodeData()
 //            str = "::*ID Válido* (LEDS GOT)::\n stateLeds: "+ s +"";
             drawInter();
             break;
-        case GET_BUTTONS:
+        case GET_BUTTONS: //Recibe estado de botones
             myWord.ui8[0] = rxData.payLoad[2];
             myWord.ui8[1] = rxData.payLoad[3];
             for(uint8_t i = 0;i<4;i++){
@@ -271,6 +277,8 @@ void MainWindow::decodeData()
 //    ui->textBrowser->append(str);
 
 }
+
+//Prepara el comando para enviarlo
 void MainWindow::sendData()
 {
     //carga el header y token
@@ -283,7 +291,7 @@ void MainWindow::sendData()
     txData.payLoad[txData.index++]=':';
     //carga el ID y nBytes
     switch (estadoComandos) {
-    case ALIVE:
+    case ALIVE: //Pide checkeo de conexion
         txData.payLoad[txData.index++]=ALIVE;
         txData.payLoad[NBYTES]=0x02;
         break;
@@ -291,17 +299,17 @@ void MainWindow::sendData()
         txData.payLoad[txData.index++]=BUTTONEVENT;
         txData.payLoad[NBYTES]=0x02;
         break;
-    case SET_LEDS:
+    case SET_LEDS: //Envia un led y el estado en el que se quiere poner
         txData.payLoad[txData.index++]=SET_LEDS;
         txData.payLoad[txData.index++]= numLed;
         txData.payLoad[txData.index++]= ledState;
         txData.payLoad[NBYTES]=0x04;
         break;
-    case GET_LEDS:
+    case GET_LEDS://Pide estado de leds
         txData.payLoad[txData.index++]=GET_LEDS;
         txData.payLoad[NBYTES]=0x02;
         break;
-    case GET_BUTTONS:
+    case GET_BUTTONS: //Pide estado de botones
         txData.payLoad[txData.index++]=GET_BUTTONS;
         txData.payLoad[NBYTES]=0x02;
         break;
@@ -310,7 +318,7 @@ void MainWindow::sendData()
     }
    txData.cheksum=0;
    //recuenta los bytes y carga el checksum
-   QString str="";
+   //QString str="";
    for(int a=0 ;a<txData.index;a++)
        txData.cheksum^=txData.payLoad[a];
     txData.payLoad[txData.index]=txData.cheksum;
@@ -328,13 +336,13 @@ void MainWindow::sendData()
 //    ui->textBrowser->append(">>PC-->MBED :: SENT ::");
 
 }
-
+//Pide checkeo de conexion
 void MainWindow::alive()
 {
     estadoComandos = ALIVE;
     sendData();
 }
-
+//Dibuja los leds y botones en la interfaz
 void MainWindow::drawInter(){
     uint16_t auxled = 0, largo, radio = 40, posX, posY, alto;
     QPainter paint(myPaintBox->getCanvas());
@@ -417,18 +425,31 @@ void MainWindow::drawInter(){
     myPaintBox->update();
 }
 
-
+//Juego
 void MainWindow::juegoTopos(){
     if(myFlags.individualFlags.playing){
         switch(gameState){
-        case LOBBY:
+        case LOBBY: //Preparacion del juego
             delay++;
-            ui->screenState->setText("PLAYING");
-            ui->screenState->setAlignment(Qt::AlignCenter);
             estadoComandos = SET_LEDS;
             numLed = ledsMask[NUMLED];
             ledState = 1;
             sendData();
+            fallos = 0;
+            aciertos = 0;
+            errores = 0;
+            puntaje = 0;
+            for(uint8_t i = 0; i<4;i++){
+                randomTimeOut[i] = 0;
+                randomTimeIn[i]=0;
+                actualTime[i] = 0;
+            }
+            ui->screenErrores->display(QString().number(errores,10));
+            ui->screenAciertos->display(QString().number(aciertos,10));
+            ui->screenFallos->display(QString().number(fallos,10));
+            ui->screenPuntaje->display(QString().number(puntaje,10));
+            ui->screenState->setText("PLAYING");
+            ui->screenState->setAlignment(Qt::AlignCenter);
             if(delay - auxGameTime >= (TIMESTART/INTERVAL)){
                 delay = 0;
                 auxGameTime = 0;
@@ -438,19 +459,21 @@ void MainWindow::juegoTopos(){
                 sendData();
                 gameState = GAME;
             }
+
             break;
-        case GAME:
+        case GAME: //Juego
             delay++;
-            if((delay < (GAMETIME/INTERVAL))){
+            if((delay < (GAMETIME/INTERVAL))){ //Chequea tiempo de juego
+                //Led 1
                 if(delay >= actualTime[0]){
-                    if(myFlags.individualFlags.topoOut1 == false){
+                    if(myFlags.individualFlags.topoOut1 == false){ //Si el led esta apagado genera tiempos random y lo habilita para salir
                         randomTimeOut[0] = ((rand() % (MAXTIMEOUT-MINTIMEOUT)) + MINTIMEOUT)/INTERVAL;
                         randomTimeIn[0] = ((rand() % (MAXTIMEIN-MINTIMEIN)) + MINTIMEIN)/INTERVAL;
                         myFlags.individualFlags.topoOut1 = true;
                     }else{
                         auxledTopos = 0;
                         auxledTopos |= 1<<0;
-                        if(lastLeds & auxledTopos){
+                        if(lastLeds & auxledTopos){ //Si el led esta apagado se enciende en el tiempo generado
                             actualTime[0] += (randomTimeOut[0]);
                             ledState = 0;
                             fallos++;
@@ -458,7 +481,7 @@ void MainWindow::juegoTopos(){
                             ui->screenFallos->display(QString().number(fallos));
                             ui->screenPuntaje->display(QString().number(puntaje));
                             myFlags.individualFlags.topoOut1 = false;
-                        }else{
+                        }else{ //Si esta encendido se apaga en el tiempo generado
                             actualTime[0] += (randomTimeIn[0]);
                             ledState = 1;
 
@@ -469,16 +492,16 @@ void MainWindow::juegoTopos(){
 
                     }
                 }
-
+                //Led 2
                 if(delay >= actualTime[1]){
-                    if(myFlags.individualFlags.topoOut2 == false){
+                    if(myFlags.individualFlags.topoOut2 == false){ //Si el led esta apagado genera tiempos random y lo habilita para salir
                         randomTimeOut[1] = ((rand() % (MAXTIMEOUT-MINTIMEOUT)) + MINTIMEOUT)/INTERVAL;
                         randomTimeIn[1] = ((rand() % (MAXTIMEIN-MINTIMEIN)) + MINTIMEIN)/INTERVAL;
                         myFlags.individualFlags.topoOut2 = true;
                     }else{
                         auxledTopos = 0;
                         auxledTopos |= (1<<1);
-                        if(lastLeds & auxledTopos){
+                        if(lastLeds & auxledTopos){ //Si el led esta apagado se enciende en el tiempo generado
                             actualTime[1] += (randomTimeOut[1]);
                             ledState = 0;
                             fallos++;
@@ -486,7 +509,7 @@ void MainWindow::juegoTopos(){
                             ui->screenFallos->display(QString().number(fallos));
                             ui->screenPuntaje->display(QString().number(puntaje));
                             myFlags.individualFlags.topoOut2 = false;
-                        }else{
+                        }else{ //Si esta encendido se apaga en el tiempo generado
                             actualTime[1] += (randomTimeIn[1]);
                             ledState = 1;
                         }
@@ -496,15 +519,17 @@ void MainWindow::juegoTopos(){
 
                     }
                 }
+
+                //Led 3
                 if(delay >= actualTime[2]){
-                    if(myFlags.individualFlags.topoOut3 == false){
+                    if(myFlags.individualFlags.topoOut3 == false){ //Si el led esta apagado genera tiempos random y lo habilita para salir
                         randomTimeOut[2] = ((rand() % (MAXTIMEOUT-MINTIMEOUT)) + MINTIMEOUT)/INTERVAL;
                         randomTimeIn[2] = ((rand() % (MAXTIMEIN-MINTIMEIN)) + MINTIMEIN)/INTERVAL;
                         myFlags.individualFlags.topoOut3 = true;
                     }else{
                         auxledTopos = 0;
                         auxledTopos |= 1<<2;
-                        if(lastLeds & auxledTopos){
+                        if(lastLeds & auxledTopos){ //Si el led esta apagado se enciende en el tiempo generado
                             actualTime[2] += (randomTimeOut[2]);
                             ledState = 0;
                             fallos++;
@@ -512,7 +537,7 @@ void MainWindow::juegoTopos(){
                             ui->screenFallos->display(QString().number(fallos));
                             ui->screenPuntaje->display(QString().number(puntaje));
                             myFlags.individualFlags.topoOut3 = false;
-                        }else{
+                        }else{ //Si esta encendido se apaga en el tiempo generado
                             actualTime[2] += (randomTimeIn[2]);
                             ledState = 1;
                         }
@@ -523,15 +548,16 @@ void MainWindow::juegoTopos(){
                     }
                 }
 
+                //Led 4
                 if(delay >= actualTime[3]){
-                    if(myFlags.individualFlags.topoOut4 == false){
+                    if(myFlags.individualFlags.topoOut4 == false){ //Si el led esta apagado genera tiempos random y lo habilita para salir
                         randomTimeOut[3] = ((rand() % (MAXTIMEOUT-MINTIMEOUT)) + MINTIMEOUT)/INTERVAL;
                         randomTimeIn[3] = ((rand() % (MAXTIMEIN-MINTIMEIN)) + MINTIMEIN)/INTERVAL;
                         myFlags.individualFlags.topoOut4 = true;
                     }else{
                         auxledTopos = 0;
                         auxledTopos |= 1<<3;
-                        if(lastLeds & auxledTopos){
+                        if(lastLeds & auxledTopos){ //Si el led esta apagado se enciende en el tiempo generado
                             actualTime[3] = delay + (randomTimeOut[3]);
                             ledState = 0;
                             fallos++;
@@ -539,7 +565,7 @@ void MainWindow::juegoTopos(){
                             ui->screenFallos->display(QString().number(fallos));
                             ui->screenPuntaje->display(QString().number(puntaje));
                             myFlags.individualFlags.topoOut4 = false;
-                        }else{
+                        }else{ //Si esta encendido se apaga en el tiempo generado
                             actualTime[3] = delay + (randomTimeIn[3]);
                             ledState = 1;
                         }
@@ -560,7 +586,7 @@ void MainWindow::juegoTopos(){
                             ledState = 0;
                             estadoComandos = SET_LEDS;
                             sendData();
-                        }else{
+                        }else{ //Si esta encendido se apaga en el tiempo generado
                             errores++;
                             puntaje -= 20;
                         }
@@ -575,32 +601,17 @@ void MainWindow::juegoTopos(){
             }
 
             break;
-        case FINISH:
-            if(puntaje > puntajeMax){
+        case FINISH: //Finaliza el juego
+            if(puntaje > puntajeMax){ //Guarda el puntaje maximo
                 puntajeMax = puntaje;
                 ui->screenPuntajeMax->display(QString().number(puntajeMax,10));
             }
+            myFlags.individualFlags.playing = false;
             ledState = 0;
             numLed = ledsMask[NUMLED];
             estadoComandos = SET_LEDS;
             sendData();
             gameState = LOBBY;
-            delay = 0;
-            auxGameTime = 0;
-            myFlags.individualFlags.playing = false;
-            fallos = 0;
-            aciertos = 0;
-            errores = 0;
-            puntaje = 0;
-            for(uint8_t i = 0; i<4;i++){
-                randomTimeOut[i] = 0;
-                randomTimeIn[i]=0;
-                actualTime[i] = 0;
-            }
-            ui->screenErrores->display(QString().number(errores,10));
-            ui->screenAciertos->display(QString().number(aciertos,10));
-            ui->screenFallos->display(QString().number(fallos,10));
-            ui->screenPuntaje->display(QString().number(puntaje,10));
             ui->screenState->setText("AWAITING PLAYER");
             ui->screenState->setAlignment(Qt::AlignCenter);
             break;
@@ -611,7 +622,7 @@ void MainWindow::juegoTopos(){
     }
 
 }
-
+ //Secuencia de intercambio de datos tras la conexion con la bluepill
 void MainWindow::conectar(){
     for(uint8_t step = 0;step < 3;step++){
         switch (estadoComandos) {
@@ -634,14 +645,14 @@ void MainWindow::conectar(){
     }
 }
 
-
+//Pide estado de los leds
 void MainWindow::getLeds()
 {
   estadoComandos = GET_LEDS;
     sendData();
 }
 
-
+//Pide estado de los botones
 void MainWindow::getButtons()
 {
     estadoComandos = GET_BUTTONS;
