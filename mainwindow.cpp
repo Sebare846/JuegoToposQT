@@ -193,8 +193,6 @@ void MainWindow::dataRecived()
                 if(rxData.nBytes==0){
                     estadoProtocolo=START;
                     if(rxData.cheksum==incomingBuffer[i]){
-//                        ui->textBrowser->setTextColor(Qt::blue);
-//                        ui->textBrowser->append(">>MBED-->PC :: RECEIVED ::");
                         decodeData();
                     }
                 }
@@ -215,11 +213,8 @@ void MainWindow::dataRecived()
 //Decodificacion de datos recibidos (payload)
 void MainWindow::decodeData()
 {
-//    QString str="", s="";
-    //for(int a=1; a < rxData.index; a++){
     switch (rxData.payLoad[1]) {
         case ALIVE: //Confirma conexion
-            //str = "::*ID Válido* (ALIVE)::";
             break;
         case BUTTONEVENT: //Indica cambio en el estado de un boton
             buttonIndex = rxData.payLoad[2];
@@ -231,11 +226,8 @@ void MainWindow::decodeData()
             if(rxData.payLoad[3]){
                 ourButton[buttonIndex].timeDiff = myWord.ui32;
                 waitTime = myWord.ui32;
-//                str = "::*ID Válido* (BUTTON UP)::";
-
             }else{
                 ourButton[buttonIndex].timeDown = myWord.ui32;
-//                str = "::*ID Válido* (BUTTON DOWN)::";
                 myFlags.individualFlags.buttonUp = true;
             }
             buttonsState = ourButton[buttonIndex].estado;
@@ -245,16 +237,12 @@ void MainWindow::decodeData()
             myWord.ui8[0] = rxData.payLoad[2];
             myWord.ui8[1] = rxData.payLoad[3];
             lastLeds = myWord.ui16[0];
-//            s.setNum(lastLeds);
-//            str = "::*ID Válido* (LEDS SET)::";
             drawInter();
             break;
         case GET_LEDS: //Recibe estado de leds
             myWord.ui8[0] = rxData.payLoad[2];
             myWord.ui8[1] = rxData.payLoad[3];
             lastLeds = myWord.ui16[0];
-//            s.setNum(lastLeds);
-//            str = "::*ID Válido* (LEDS GOT)::\n stateLeds: "+ s +"";
             drawInter();
             break;
         case GET_BUTTONS: //Recibe estado de botones
@@ -263,18 +251,10 @@ void MainWindow::decodeData()
             for(uint8_t i = 0;i<4;i++){
             auxButtonState = ~myWord.ui8[0] -240;
             }
-//            s.setNum(auxButtonState);
-//            str = "::*ID Válido* (BUTTONS GOT)::\n buttonState: "+ s +"";
             break;
         default:
-//            str=((char *)rxData.payLoad);
-//            str= ("::*ID Invalido * (" + str + ")::");
             break;
     }
-    //}
-    //escribe en la pantalla el mensaje
-//    ui->textBrowser->setTextColor(Qt::black);
-//    ui->textBrowser->append(str);
 
 }
 
@@ -317,23 +297,12 @@ void MainWindow::sendData()
         break;
     }
    txData.cheksum=0;
-   //recuenta los bytes y carga el checksum
-   //QString str="";
    for(int a=0 ;a<txData.index;a++)
        txData.cheksum^=txData.payLoad[a];
     txData.payLoad[txData.index]=txData.cheksum;
     if(mySerial->isWritable()){
         mySerial->write((char *)txData.payLoad,txData.payLoad[NBYTES]+6);
     }
-    //escribe en pantalla el mensaje enviado
-//    for(int i=0; i<=txData.index; i++){
-//        if(isalnum(txData.payLoad[i]))
-//            str = str + QString("%1").arg((char)txData.payLoad[i]);
-//        else
-//            str = str +"{" + QString("%1").arg(txData.payLoad[i],2,16,QChar('0')) + "}";
-//    }
-//    ui->textBrowser->setTextColor(Qt::green);
-//    ui->textBrowser->append(">>PC-->MBED :: SENT ::");
 
 }
 //Pide checkeo de conexion
@@ -403,6 +372,7 @@ void MainWindow::drawInter(){
     pen.setColor(Qt::white);
     paint.setPen(pen);
 
+    //Segun estado de botones pinta gris si esta presionado o en negro si no
     for(int i = 0; i < NUMBUT;i++){
         if(ourButton[i].estado == true){
             switch(ourButton[i].estado){
@@ -421,7 +391,6 @@ void MainWindow::drawInter(){
         posX += largo;
 
     }
-
     myPaintBox->update();
 }
 

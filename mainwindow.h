@@ -9,15 +9,15 @@
 #include "settingsdialog.h"
 #include "qpaintbox.h"
 
-#define MAXTIMEOUT 6000
-#define MAXTIMEIN 2000
-#define MINTIMEOUT 1000
-#define MINTIMEIN 500
-#define INTERVAL 50
-#define NUMLED 4
-#define NUMBUT 4
-#define TIMESTART 1000
-#define GAMETIME 30000
+#define MAXTIMEOUT 6000 //Tiempo maximo del led apagado una vez jugando
+#define MAXTIMEIN 2000 //Tiempo maximo del led encendido
+#define MINTIMEOUT 1000 //Tiempo minimo del led apagado una vez jugando
+#define MINTIMEIN 500 //Tiempo minimo del led encendido
+#define INTERVAL 50 //Intervalo de ejecucion de la funcion juego
+#define NUMLED 4 //Numero de leds
+#define NUMBUT 4 //Numero de botones
+#define TIMESTART 1000 //Tiempo para iniciar el juego
+#define GAMETIME 30000 //Tiempo maximo de juego
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -31,32 +31,33 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-private slots:
+private slots: //Funciones privadas
+    //Funcion para abrir puerto serie
     void openSerialPort();
-
+    //Funcion para cerrar puerto serie
     void closeSerialPort();
-
+    //Funcion ejecutada cuando el timer llega a 0
     void myTimerOnTime();
-
+    //Funcion de decodificacion de protocolo de recepcion
     void dataRecived();
-
+    //Funcion de decodificacion de datos recibidos
     void decodeData();
-
+    //Funcion que prepara el comando con los datos a enviar
     void sendData();
-
+    //Funcion que dibuja la interfaz
     void drawInter();
-
+    //Funcion para chequear conexion
     void alive();
-
+    //Funcion del juego
     void juegoTopos();
-
+    //Funcion que pide el estado de los leds
     void getLeds();
-
+    //Funcion que pide el estado de los botones
     void getButtons();
-
+    //Funcion de la secuencia de comandos al conectar la bluepill
     void conectar();
 
-private:
+private: //Declaracion de variables privadas
     Ui::MainWindow *ui;
     QSerialPort *mySerial;
     QTimer *myTimer, *gameTimer;
@@ -64,9 +65,7 @@ private:
     SettingsDialog *mySettings;
     QLabel *estado;
 
-
-
-
+    //Enumeracion de componentes del protocolo
     typedef enum{
         START,
         HEADER_1,
@@ -79,6 +78,7 @@ private:
 
     _eProtocolo estadoProtocolo;
 
+    //Enumeracion de comandos
     typedef enum{
         ACK = 0x0D,
         ALIVE=0xF0,
@@ -91,6 +91,7 @@ private:
 
     _eID estadoComandos;
 
+    //Enumeracion de estados del juego
     typedef enum{
         LOBBY,
         GAME,
@@ -99,6 +100,7 @@ private:
 
     _eESTADOS gameState;
 
+    //Estructura de los comandos
     typedef struct{
         uint8_t timeOut;
         uint8_t cheksum;
@@ -109,6 +111,7 @@ private:
 
     _sDatos rxData, txData;
 
+    //Union para la conversion de datos en bloques de 8 bits
     typedef union {
         float f32;
         int i32;
@@ -122,6 +125,7 @@ private:
 
     _udat myWord;
 
+    //Estructura de los botones
     typedef struct{
         uint8_t estado;
         uint8_t event;
@@ -131,6 +135,7 @@ private:
 
     _sTeclas ourButton[4];
 
+    //Banderas
     typedef union{
         struct{
             uint8_t playing :1;
